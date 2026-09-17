@@ -7,7 +7,7 @@ upstream repository stays the authoritative source for the library, its API and 
 Fork branch: main = upstream b5f2781 + 79cf629
 ("Fix enctype fallback picking the enctype the KDC just refused").
 
-The problem this fork fixes
+## The problem this fork fixes
 
 When a KDC refuses the encryption type of the first AS-REQ, kerbad crashed instead of falling back to
 another encryption type.
@@ -33,7 +33,7 @@ KDC has just refused (RC4 is listed with an empty salt), so the retry repeated t
 The retry lives outside the try/except that caught the first refusal (kerbad/client.py:323), so the
 second refusal was never handled and the whole call died with KDC_ERR_ETYPE_NOTSUPP.
 
-The fix
+## The fix
 
 One function, kerbad/common/creds.py — KerberosCredential.get_preferred_enctype().
 
@@ -72,7 +72,7 @@ Why this shape:
 Scope: kerbad/common/creds.py only, 6 insertions / 5 deletions. No dependency, version, ASN.1 or
 crypto changes.
 
-How it was verified
+## How it was verified
 
 - Enctype probe against the DC, one AS-REQ per enctype, creating nothing in AD: the KDC refused etype
   23 (RC4) with KDC_ERR_ETYPE_NOTSUPP, while its ETYPE-INFO2 hint listed 18 (AES256), 17 (AES128)
@@ -89,7 +89,7 @@ How it was verified
 - Tested against a lab Windows Server 2025 domain controller where RC4 is not usable for the account
   (bloodyAD 2.5.5 + kerbad 0.5.11).
 
-Using this fork
+## Using this fork
 
 Install the fork into the same Python environment (virtualenv) that runs your tool. Install it after
 the tool itself, otherwise pip will pull the PyPI kerbad as a dependency and shadow this one:
