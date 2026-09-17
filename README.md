@@ -15,12 +15,62 @@ another encryption type.
 Observed symptom (reproduced through bloodyAD's add badSuccessor, but the same code path is used by
 anything that authenticates with a password):
 
-    [+] Creating DMSA danila$ in OU=...
-    [+] Impersonating: CN=...
+```text
+    [+] Creating DMSA danila$ in OU=Employees,DC=checkpoint,DC=htb
+    [+] Impersonating: CN=Mark Davies,OU=Employees,DC=checkpoint,DC=htb
     [-] Failed to retrieve dMSA TGT
-    ...
-    kerbad.protocol.errors.KerberosError:  Error Name: KDC_ERR_ETYPE_NOTSUPP
-    Detail: "KDC has no support for encryption type"
+    [-] Try using Rubeus, or something like:
+    [-] badS4U2self 'kerberos+pw://checkpoint.htb\alex.turner:Checkpoint2024%21@10.129.131.126/' 'krbtgt/checkpoint.htb@checkpoint.htb' 'danila$@checkpoint.htb' --dmsa
+    Traceback (most recent call last):
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/client.py", line 313, in get_TGT
+        preauth_rep = self.do_preauth(etype, with_pac=with_pac)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/client.py", line 189, in do_preauth
+        rep = self.ksoc.sendrecv(req.dump())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/network/clientsocket.py", line 85, in sendrecv
+        raise KerberosError(krb_message)
+    kerbad.protocol.errors.KerberosError:  Error Name: KDC_ERR_ETYPE_NOTSUPP Detail: "KDC has no support for encryption type"
+
+    During handling of the above exception, another exception occurred:
+
+    Traceback (most recent call last):
+      File "/home/danila/Tools/bloodyAD/bloodyAD.py", line 5, in <module>
+        main.main()
+      File "/home/danila/Tools/bloodyAD/bloodyAD/main.py", line 342, in main
+        asyncio.run(amain())
+      File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+        return runner.run(main)
+               ^^^^^^^^^^^^^^^^
+      File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+        return self._loop.run_until_complete(task)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+        return future.result()
+               ^^^^^^^^^^^^^^^
+      File "/home/danila/Tools/bloodyAD/bloodyAD/main.py", line 272, in amain
+        output = await result
+                 ^^^^^^^^^^^^
+      File "/home/danila/Tools/bloodyAD/bloodyAD/cli_modules/add.py", line 195, in badSuccessor
+        raise e
+      File "/home/danila/Tools/bloodyAD/bloodyAD/cli_modules/add.py", line 186, in badSuccessor
+        tgs, encTGSRepPart, key = client.with_clock_skew(client.S4U2self, target_user, service_spn, is_dmsa=True)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/client.py", line 845, in with_clock_skew
+        return func(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/client.py", line 556, in S4U2self
+        self.get_TGT()
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/client.py", line 323, in get_TGT
+        preauth_rep = self.do_preauth(srv_etype, with_pac=with_pac)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/client.py", line 189, in do_preauth
+        rep = self.ksoc.sendrecv(req.dump())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/home/danila/Tools/.venv/lib/python3.12/site-packages/kerbad/network/clientsocket.py", line 85, in sendrecv
+        raise KerberosError(krb_message)
+    kerbad.protocol.errors.KerberosError:  Error Name: KDC_ERR_ETYPE_NOTSUPP Detail: "KDC has no support for encryption type"
+```
 
 Root cause: for a password credential kerbad builds its enctype preference list starting with RC4
 (ARCFOUR_HMAC_MD5). get_TGT() sends the first AS-REQ with that enctype; when the account cannot
@@ -39,6 +89,7 @@ One function, kerbad/common/creds.py — KerberosCredential.get_preferred_enctyp
 
 Before:
 
+```python
     def get_preferred_enctype(self, server_enctypes:List[EncryptionType]) -> EncryptionType:
         client_enctypes = self.get_supported_enctypes(as_int=False)
         common_enctypes = self.get_common_enctypes(server_enctypes)
@@ -46,9 +97,11 @@ Before:
         for c_enctype in client_enctypes:
             if c_enctype in common_enctypes:
                 return c_enctype
+```
 
 After:
 
+```python
     def get_preferred_enctype(self, server_enctypes:List[EncryptionType]) -> EncryptionType:
         common_enctypes = self.get_common_enctypes(server_enctypes)
 
@@ -58,6 +111,7 @@ After:
         for s_enctype in server_enctypes:
             if s_enctype in common_enctypes:
                 return s_enctype
+```
 
 Why this shape:
 
@@ -94,33 +148,45 @@ crypto changes.
 Install the fork into the same Python environment (virtualenv) that runs your tool. Install it after
 the tool itself, otherwise pip will pull the PyPI kerbad as a dependency and shadow this one:
 
+```bash
     pip install "kerbad @ git+https://github.com/daniladomoroshchenov/kerbad.git"
+```
 
 Pin the exact commit for a reproducible install:
 
+```bash
     pip install "kerbad @ git+https://github.com/daniladomoroshchenov/kerbad.git@79cf629"
+```
 
 Editable install from a clone (convenient while testing further changes):
 
+```bash
     git clone https://github.com/daniladomoroshchenov/kerbad.git
     cd kerbad
     pip install -e . --no-deps --no-build-isolation
+```
 
 Check that the patched copy is the one being imported — run this with the same interpreter that runs
 your tool:
 
+```bash
     python -c "import kerbad, kerbad.common.creds as c; print(kerbad.file)"
     python -c "import inspect, kerbad.common.creds as c; print('s_enctype' in inspect.getsource(c.KerberosCredential.get_preferred_enctype))"
+```
 
 The first command must print a path inside the fork's copy (not site-packages/kerbad of the released
 package), the second must print True.
 
 Roll back to the released version:
 
+```bash
     pip install kerbad==0.5.11
+```
 
 Keeping in sync with upstream
 
+```bash
     git remote add upstream https://github.com/CravateRouge/kerbad.git
     git fetch upstream
     git rebase upstream/main
+```
