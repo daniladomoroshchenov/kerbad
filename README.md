@@ -1,4 +1,4 @@
-kerbad — fork with a fix for the enctype fallback (KDC_ERR_ETYPE_NOTSUPP)
+# kerbad — fork with a fix for the enctype fallback (KDC_ERR_ETYPE_NOTSUPP)
 
 This is a fork of CravateRouge/kerbad, a pure-Python
 Kerberos library. It carries one fix on top of upstream main; nothing else is changed, and the
