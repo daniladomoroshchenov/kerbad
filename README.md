@@ -15,6 +15,14 @@ another encryption type.
 Observed symptom (reproduced through bloodyAD's add badSuccessor, but the same code path is used by
 anything that authenticates with a password):
 
+Command:
+
+```bash
+python3 bloodyAD.py --host dc01.checkpoint.htb -d checkpoint.htb -u 'alex.turner' -p 'Checkpoint2024!' add badSuccessor danila -t 'CN=Mark Davies,OU=Employees,DC=checkpoint,DC=htb' --ou 'OU=Employees,DC=checkpoint,DC=htb'
+```
+
+Error:
+
 ```text
     [+] Creating DMSA danila$ in OU=Employees,DC=checkpoint,DC=htb
     [+] Impersonating: CN=Mark Davies,OU=Employees,DC=checkpoint,DC=htb
